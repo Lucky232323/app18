@@ -13,9 +13,9 @@ import { Menu, User, Crosshair, ShieldAlert, Bell, Bike, Car, Package } from 'lu
 import type { Ride, Screen, Service, User as UserType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useDoc } from '@/firebase';
-import { addDoc, collection, doc, serverTimestamp, updateDoc, getDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, updateDoc, getDoc, onSnapshot } from 'firebase/firestore';
 
-type Stage = 'idle' | 'searching' | 'selecting_service' | 'finding_captain' | 'in_ride' | 'trip_summary';
+type Stage = 'idle' | 'searching' | 'selecting_service' | 'finding_captain' | 'in_ride' | 'trip_summary' | 'payment';
 
 type HomePageProps = {
   user: UserType | null;
@@ -36,6 +36,7 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
   const [selectedService, setSelectedService] = useState<Service['id']>('Bike');
   const [mapCenter, setMapCenter] = useState<{ lat: number, lng: number } | null>(null);
   const [platformConfig, setPlatformConfig] = useState<any>(null); // To store dynamic pricing
+  const [rideData, setRideData] = useState<Ride | null>(null);
 
   const { toast } = useToast();
   const { firestore, user: firebaseUser } = useFirebase();
@@ -69,39 +70,55 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
       } catch (e) {
         // Fallback values if config fetch fails
         setPlatformConfig({ baseFare: 40, perKmRate: 15 });
+        console.error("Error fetching config, using defaults", e);
       }
     };
     fetchConfig();
   }, [firestore]);
 
 
-  const rideDocRef = useMemo(() =>
-    firestore && activeRideId ? doc(firestore, 'rides', activeRideId) : null,
-    [firestore, activeRideId]);
-
-  const { data: rideData, isLoading: isRideLoading } = useDoc(rideDocRef);
-
+  // --- 1. RIDE LOGIC: Listen for Active Ride Updates ---
   useEffect(() => {
-    if (!isRideLoading && rideData) {
-      switch (rideData.status) {
-        case 'SEARCHING':
-          setStage('finding_captain');
-          break;
-        case 'ACCEPTED':
-        case 'ARRIVED':
-        case 'STARTED':
-          setStage('in_ride');
-          break;
-        case 'ENDED':
-          setStage('trip_summary');
-          break;
-        case 'PAID':
-        case 'CANCELLED':
-          resetToIdle();
-          break;
+    if (!firestore || !activeRideId) return;
+    const unsub = onSnapshot(doc(firestore, 'rides', activeRideId), (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setRideData(data as Ride);
+
+        // Auto-update stage based on status
+        if (data.status === 'ACCEPTED' && stage === 'finding_captain') setStage('in_ride'); // Simplified flow
+        if (data.status === 'ARRIVED') setStage('in_ride');
+        if (data.status === 'STARTED') setStage('in_ride');
+        if (data.status === 'COMPLETED') setStage('payment');
+
+        switch (data.status) {
+          case 'PAID':
+            // Finalize
+            const finalRide: Ride = {
+              id: activeRideId,
+              captain: {
+                name: data.captainName || 'Captain',
+                vehicle: 'Vehicle',
+                rating: 4.8,
+                image: 'https://picsum.photos/seed/captain/100/100',
+              },
+              pickup: data.pickupLocation,
+              destination: data.dropLocation,
+              fare: data.estimatedFare,
+              service: data.service,
+              date: new Date().toISOString(),
+            };
+            onRideComplete(finalRide);
+            setActiveRideId(null);
+            setStage('idle');
+            setDestination('');
+            setRideData(null);
+            break;
+        }
       }
-    }
-  }, [rideData, isRideLoading, activeRideId]);
+    });
+    return () => unsub();
+  }, [firestore, activeRideId, stage, onRideComplete, setActiveRideId]);
 
   // --- 4. OFFERS: Fetch Active Promotions ---
   const [promotions, setPromotions] = useState<any[]>([]);
@@ -359,6 +376,8 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
           onBook={handleBook}
           navigateTo={navigateTo}
           availableOffers={promotions}
+          platformConfig={platformConfig}
+          rideDistance={rideDistance}
         />
       )}
 

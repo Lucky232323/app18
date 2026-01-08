@@ -29,14 +29,13 @@ type BookingSheetProps = {
     onBook: (service: Service['id'], details?: any) => void;
     navigateTo: (screen: Screen) => void;
     availableOffers?: any[]; // Promotion[]
+    platformConfig: any;
+    rideDistance: number;
 };
 
-const serviceOptions: Service[] = [
-    { id: 'Bike', name: 'Bike', description: 'Quickest way', eta: 5, fare: 75, image: '/icons/bike.png' },
-    { id: 'Auto', name: 'Auto', description: 'Economical', eta: 7, fare: 120, image: '/icons/auto.png' },
-    { id: 'Cab', name: 'Cab', description: 'Comfortable', eta: 8, fare: 180, image: '/icons/cab.png' },
-];
+// Removed hardcoded serviceOptions from top level
 
+// ... rental packages, payment methods ...
 const rentalPackages = [
     { id: '1hr', name: '1 Hr / 10 km', fare: 150 },
     { id: '2hr', name: '2 Hr / 20 km', fare: 280 },
@@ -50,7 +49,39 @@ const paymentMethods = [
     { id: 'gpay', name: 'GPay' },
 ];
 
-export default function BookingSheet({ pickup, destination, selectedService, onServiceSelect, onBack, onBook, navigateTo, availableOffers = [] }: BookingSheetProps) {
+export default function BookingSheet({ pickup, destination, selectedService, onServiceSelect, onBack, onBook, navigateTo, availableOffers = [], platformConfig, rideDistance }: BookingSheetProps) {
+    // Dynamically calculate service options based on Admin Config
+    const baseFare = Number(platformConfig?.baseFare) || 40;
+    const perKm = Number(platformConfig?.perKmRate) || 12;
+    const distanceFare = rideDistance * perKm;
+
+    const serviceOptions: Service[] = [
+        {
+            id: 'Bike',
+            name: 'Bike',
+            description: 'Quickest way',
+            eta: 5,
+            fare: Math.round((baseFare + distanceFare) * 0.8), // Bike is cheaper (0.8x)
+            image: '/icons/bike.png'
+        },
+        {
+            id: 'Auto',
+            name: 'Auto',
+            description: 'Economical',
+            eta: 7,
+            fare: Math.round((baseFare + distanceFare) * 1.2), // Auto is standardized (1.2x)
+            image: '/icons/auto.png'
+        },
+        {
+            id: 'Cab',
+            name: 'Cab',
+            description: 'Comfortable',
+            eta: 8,
+            fare: Math.round((baseFare + distanceFare) * 1.8), // Cab is premium (1.8x)
+            image: '/icons/cab.png'
+        },
+    ];
+
     const [selectedPayment, setSelectedPayment] = useState('cash');
     const [appliedOffer, setAppliedOffer] = useState<Promotion | null>(null);
     const [bookingMode, setBookingMode] = useState<'daily' | 'rentals' | 'parcel'>('daily');
