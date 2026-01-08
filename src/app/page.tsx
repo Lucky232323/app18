@@ -19,6 +19,7 @@ import AdminPaymentsPage from '@/app/admin/payments/page';
 import PermissionsPage from '@/components/app/PermissionsPage';
 import HomePage from '@/components/app/HomePage';
 import RideHistoryPage from '@/app/ride-history/page';
+import OffersPage from '@/app/offers/page';
 import WalletPage from '@/app/wallet/page';
 import ProfilePage from '@/app/profile/page';
 import HelpPage from '@/app/help/page';
@@ -50,6 +51,8 @@ function App() {
   const [userRole, setUserRole] = useState<'rider' | 'captain' | 'admin' | null>(null);
   const [activeRideId, setActiveRideId] = useState<string | null>(null);
   const [activeChatRideId, setActiveChatRideId] = useState<string | null>(null);
+  // New state to control if side menu should be open when returning to home
+  const [shouldOpenSideMenu, setShouldOpenSideMenu] = useState(false);
 
   const { user: firebaseUser, isUserLoading, firestore } = useFirebase();
 
@@ -264,6 +267,13 @@ function App() {
 
   const navigateTo = (screen: Screen) => {
     setCurrentScreen(screen);
+    // Reset side menu flag when navigating away normally, unless we specifically set it elsewhere
+    setShouldOpenSideMenu(false);
+  };
+
+  const navigateBackToMenu = () => {
+    setShouldOpenSideMenu(true);
+    setCurrentScreen('home');
   };
 
   const openChat = (rideId: string) => {
@@ -321,7 +331,7 @@ function App() {
       case 'permissions':
         return <PermissionsPage onPermissionsGranted={handlePermissionsGranted} />;
       case 'home':
-        return <HomePage user={appUser} onRideComplete={handleRideComplete} navigateTo={navigateTo} handleLogout={onLogout} openChat={openChat} activeRideId={activeRideId} onActiveRideIdChange={setActiveRideId} />;
+        return <HomePage user={appUser} onRideComplete={handleRideComplete} navigateTo={navigateTo} handleLogout={onLogout} openChat={openChat} activeRideId={activeRideId} onActiveRideIdChange={setActiveRideId} initialSideMenuOpen={shouldOpenSideMenu} />;
       case 'captain-dashboard':
         return <CaptainDashboardPage captain={appUser} onLogout={onLogout} openChat={openChat} />;
       case 'captain-documents':
@@ -332,33 +342,35 @@ function App() {
         if (!activeChatRideId || !userRole) return null; // Or show an error/fallback
         return <ChatPage rideId={activeChatRideId} userRole={userRole} onBack={closeChat} />;
       case 'ride-history':
-        return <RideHistoryPage navigateTo={navigateTo} rides={rideHistory} />;
+        return <RideHistoryPage navigateTo={navigateTo} rides={rideHistory} onBack={navigateBackToMenu} />;
       case 'wallet':
-        return <WalletPage navigateTo={navigateTo} />;
+        return <WalletPage navigateTo={navigateTo} onBack={navigateBackToMenu} />;
       case 'profile':
-        return <ProfilePage user={appUser} navigateTo={navigateTo} onUserUpdate={handleUserUpdate} onLogout={onLogout} />;
+        return <ProfilePage user={appUser} navigateTo={navigateTo} onUserUpdate={handleUserUpdate} onLogout={onLogout} onBack={navigateBackToMenu} />;
       case 'help':
-        return <HelpPage navigateTo={navigateTo} />;
+        return <HelpPage navigateTo={navigateTo} onBack={navigateBackToMenu} />;
       case 'safety':
-        return <SafetyPage navigateTo={navigateTo} />;
+        return <SafetyPage navigateTo={navigateTo} onBack={navigateBackToMenu} />;
       case 'refer':
-        return <ReferPage navigateTo={navigateTo} />;
+        return <ReferPage navigateTo={navigateTo} onBack={navigateBackToMenu} />;
       case 'rewards':
-        return <MyRewardsPage navigateTo={navigateTo} />;
+        return <MyRewardsPage navigateTo={navigateTo} onBack={navigateBackToMenu} />;
       case 'power-pass':
-        return <PowerPassPage navigateTo={navigateTo} />;
+        return <PowerPassPage navigateTo={navigateTo} onBack={navigateBackToMenu} />;
       case 'coins':
-        return <RiderAppCoinsPage navigateTo={navigateTo} />;
+        return <RiderAppCoinsPage navigateTo={navigateTo} onBack={navigateBackToMenu} />;
       case 'notifications':
-        return <NotificationsPage navigateTo={navigateTo} />;
+        return <NotificationsPage navigateTo={navigateTo} onBack={navigateBackToMenu} />;
       case 'payments':
-        return <PaymentsPage navigateTo={navigateTo} />;
+        return <PaymentsPage navigateTo={navigateTo} onBack={navigateBackToMenu} />;
       case 'claims':
-        return <ClaimsPage navigateTo={navigateTo} />;
+        return <ClaimsPage navigateTo={navigateTo} onBack={navigateBackToMenu} />;
       case 'settings':
-        return <SettingsPage navigateTo={navigateTo} onLogout={onLogout} />;
+        return <SettingsPage navigateTo={navigateTo} onLogout={onLogout} onBack={navigateBackToMenu} />;
       case 'my-rating':
-        return <MyRatingPage navigateTo={navigateTo} />;
+        return <MyRatingPage navigateTo={navigateTo} onBack={navigateBackToMenu} />;
+      case 'offers':
+        return <OffersPage navigateTo={navigateTo} onBack={navigateBackToMenu} />;
       default:
         if (firebaseUser) {
           if (userRole === 'captain') {
@@ -367,7 +379,7 @@ function App() {
           if (userRole === 'admin') {
             return <AdminDashboardPage user={appUser} onLogout={onLogout} navigateTo={navigateTo} currentScreen={currentScreen} />;
           }
-          return <HomePage user={appUser} onRideComplete={handleRideComplete} navigateTo={navigateTo} handleLogout={onLogout} openChat={openChat} activeRideId={activeRideId} onActiveRideIdChange={setActiveRideId} />;
+          return <HomePage user={appUser} onRideComplete={handleRideComplete} navigateTo={navigateTo} handleLogout={onLogout} openChat={openChat} activeRideId={activeRideId} onActiveRideIdChange={setActiveRideId} initialSideMenuOpen={shouldOpenSideMenu} />;
         }
         return <RoleSelectionPage onRoleSelect={handleRoleSelection} />;
     }

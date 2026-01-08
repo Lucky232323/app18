@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { User, Screen } from '@/lib/types';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Send, Bell, History } from 'lucide-react';
-import { useFirebase, useMemoFirebase } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { collection, addDoc, Timestamp, query, orderBy, limit } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { format } from 'date-fns';
@@ -26,10 +26,10 @@ export default function AdminNotificationsPage({ user, onLogout, navigateTo, cur
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ title: '', body: '', target: 'all' });
+  const [formData, setFormData] = useState({ title: '', body: '', targetAudience: 'ALL' });
 
   // Fetch history
-  const historyQuery = useMemoFirebase(() => {
+  const historyQuery = useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'notifications'), orderBy('createdAt', 'desc'), limit(10));
   }, [firestore]);
@@ -40,13 +40,15 @@ export default function AdminNotificationsPage({ user, onLogout, navigateTo, cur
     setLoading(true);
     try {
       await addDoc(collection(firestore, 'notifications'), {
-        ...formData,
+        title: formData.title,
+        body: formData.body,
+        targetAudience: formData.targetAudience, // Correct field name
         createdAt: Timestamp.now(),
         status: 'sent',
         sentBy: user?.email
       });
       toast({ title: "Notification Sent", description: "Your message has been queued for delivery." });
-      setFormData({ title: '', body: '', target: 'all' });
+      setFormData({ title: '', body: '', targetAudience: 'ALL' });
     } catch (e) {
       toast({ variant: 'destructive', title: "Error", description: "Failed to send notification." });
     } finally {
@@ -73,14 +75,14 @@ export default function AdminNotificationsPage({ user, onLogout, navigateTo, cur
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Target Audience</Label>
-                <Select value={formData.target} onValueChange={v => setFormData({ ...formData, target: v })}>
+                <Select value={formData.targetAudience} onValueChange={v => setFormData({ ...formData, targetAudience: v })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select audience" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Users & Captains</SelectItem>
-                    <SelectItem value="riders">Riders Only</SelectItem>
-                    <SelectItem value="captains">Captains Only</SelectItem>
+                    <SelectItem value="ALL">All Users & Captains</SelectItem>
+                    <SelectItem value="RIDERS">Riders Only</SelectItem>
+                    <SelectItem value="CAPTAINS">Captains Only</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -116,7 +118,7 @@ export default function AdminNotificationsPage({ user, onLogout, navigateTo, cur
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{notif.body}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase font-medium">
-                    <span className="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">{notif.target}</span>
+                    <span className="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">{notif.targetAudience}</span>
                     <span>• Sent by {notif.sentBy || 'Admin'}</span>
                   </div>
                 </CardContent>

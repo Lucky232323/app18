@@ -30,22 +30,39 @@ export default function SearchSheet({ onClose, onDestinationSelect }: SearchShee
       onDestinationSelect(pickup, destination);
     }
   };
-  
+
   const handleMapSelect = () => {
-    if(isChoosingOnMap) {
-        onDestinationSelect(pickup, "Selected on Map");
+    if (isChoosingOnMap) {
+      onDestinationSelect(pickup, "Selected on Map");
     } else {
-        setIsChoosingOnMap(true);
+      setIsChoosingOnMap(true);
     }
   }
 
   if (isChoosingOnMap) {
     return (
-        <div className="absolute inset-x-0 bottom-0 z-30 p-4">
-             <Button onClick={handleMapSelect} className="w-full h-14 text-lg">
-                Confirm Destination
-            </Button>
+      <div className="absolute inset-x-0 bottom-0 z-30 pointer-events-none flex flex-col justify-end h-screen">
+        {/* Header for Back Button */}
+        <div className="absolute top-0 left-0 right-0 p-4 z-40 bg-gradient-to-b from-background/80 to-transparent pointer-events-auto">
+          <Button variant="secondary" size="icon" className="h-12 w-12 rounded-full shadow-md bg-background" onClick={() => setIsChoosingOnMap(false)}>
+            <ArrowLeft className="h-6 w-6" />
+          </Button>
         </div>
+
+        {/* Bottom Confirm Button */}
+        <div className="p-4 bg-background border-t pointer-events-auto pb-8">
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Location</p>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-green-500"></div>
+              <p className="text-lg font-bold">Selected Location</p>
+            </div>
+          </div>
+          <Button onClick={handleMapSelect} className="w-full h-14 text-lg">
+            Confirm Destination
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -75,21 +92,21 @@ export default function SearchSheet({ onClose, onDestinationSelect }: SearchShee
             className="h-14 pl-10 bg-secondary border-none focus-visible:ring-primary"
           />
           <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2">
-            <Mic className="h-5 w-5 text-muted-foreground"/>
+            <Mic className="h-5 w-5 text-muted-foreground" />
           </Button>
         </div>
       </div>
       <Separator />
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6">
-            <button className="flex items-center text-left w-full gap-4 text-primary" onClick={handleMapSelect}>
-                <div className="p-2 bg-secondary rounded-full">
-                    <LocateFixed className="h-5 w-5"/>
-                </div>
-                <div>
-                    <p className="font-semibold">Choose on map</p>
-                </div>
-            </button>
+          <button className="flex items-center text-left w-full gap-4 text-primary" onClick={handleMapSelect}>
+            <div className="p-2 bg-secondary rounded-full">
+              <LocateFixed className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-semibold">Choose on map</p>
+            </div>
+          </button>
           <section>
             <h3 className="font-semibold mb-4 text-muted-foreground">Saved Places</h3>
             <div className="space-y-4">
@@ -125,9 +142,9 @@ export default function SearchSheet({ onClose, onDestinationSelect }: SearchShee
       </ScrollArea>
       {destination && (
         <div className="p-4 border-t">
-            <Button onClick={handleConfirm} className="w-full h-14 text-lg">
+          <Button onClick={handleConfirm} className="w-full h-14 text-lg">
             Confirm Destination
-            </Button>
+          </Button>
         </div>
       )}
     </div>

@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 
 type ClaimsPageProps = {
   navigateTo: (screen: Screen) => void;
+  onBack?: () => void;
 };
 
 const bikeCoverage = [
@@ -21,7 +22,7 @@ const autoCoverage = [
   { icon: FileText, title: 'Medical Expense for Accident', amount: '₹ 1,50,000' },
 ];
 
-export default function ClaimsPage({ navigateTo }: ClaimsPageProps) {
+export default function ClaimsPage({ navigateTo, onBack }: ClaimsPageProps) {
   const { toast } = useToast();
 
   const handleClaim = () => {
@@ -32,7 +33,7 @@ export default function ClaimsPage({ navigateTo }: ClaimsPageProps) {
   };
 
   return (
-    <Layout title="Claims" navigateTo={navigateTo}>
+    <Layout title="Claims" navigateTo={navigateTo} onBack={onBack}>
       <div className="p-4 space-y-6">
         <Tabs defaultValue="bike" className="w-full">
           <TabsList className="grid w-full grid-cols-2 h-12">
@@ -59,7 +60,7 @@ export default function ClaimsPage({ navigateTo }: ClaimsPageProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <button className="text-primary underline">View Claim Procedure</button><br/>
+            <button className="text-primary underline">View Claim Procedure</button><br />
             <button className="text-primary underline mt-2">View Terms and Conditions</button>
           </CardContent>
         </Card>

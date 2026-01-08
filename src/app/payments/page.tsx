@@ -1,26 +1,29 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Layout from '@/components/app/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import type { Screen } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Wallet, Landmark, Tag, Ticket, ChevronRight, Circle } from 'lucide-react';
+import { Wallet, Landmark, Tag, Ticket, Plus, CreditCard, Banknote } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Image from 'next/image';
+import { useFirebase, useDoc, useCollection } from '@/firebase';
+import { doc, collection, query, where, orderBy, limit } from 'firebase/firestore';
 
 type PaymentsPageProps = {
-  navigateTo: (screen: Screen) => void;
+    navigateTo: (screen: Screen) => void;
+    onBack?: () => void;
 };
 
+// ... Icons (AmazonPay, Upi, Paytm) ...
 const AmazonPayIcon = () => (
-    <svg width="40" height="24" viewBox="0 0 49 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M9.993 21.922h4.153v1.89H5.72V7.16h4.273v14.762z" fill="#000"></path>
-        <path d="M21.19 22.06c2.618 0 4.23-1.428 4.23-3.692 0-2.22-1.57-3.623-4.13-3.623h-2.58v7.315h2.48zm-2.48-8.834h2.41c1.55 0 2.617.773 2.617 2.11 0 1.355-1.023 2.132-2.595 2.132h-2.432v-4.242z" fill="#000"></path>
-        <path d="M43.08 7.16v16.73h-3.958L34.33 9.475l.182 14.415h-4.04V7.16h3.957l4.774 14.38.18-14.38h3.655v.025z" fill="#000"></path>
-        <path d="M43.08 7.16v16.73h-3.958L34.33 9.475l.182 14.415h-4.04V7.16h3.957l4.774 14.38.18-14.38h3.655v.025z" fill="#FF9900"></path>
-        <path d="M43.344 23.89c.14-.3.21-.6.21-.93v-1.89h1.76v1.9c0 .8-.26 1.43-.8 1.9-.53.47-1.25.7-2.15.7-.93 0-1.68-.23-2.24-.7-.56-.47-.85-1.1-.85-1.9v-1.9h1.76v1.89c0 .33.07.63.2.89.14.27.35.4.65.4.3 0 .5-.13.62-.4z" fill="#000"></path>
-        <path d="M43.344 23.89c.14-.3.21-.6.21-.93v-1.89h1.76v1.9c0 .8-.26 1.43-.8 1.9-.53.47-1.25.7-2.15.7-.93 0-1.68-.23-2.24-.7-.56-.47-.85-1.1-.85-1.9v-1.9h1.76v1.89c0 .33.07.63.2.89.14.27.35.4.65.4.3 0 .5-.13.62-.4z" fill="#FF9900"></path>
-    </svg>
+    <div className="h-8 w-12 bg-white border rounded flex items-center justify-center p-1">
+        <svg viewBox="0 0 49 14" className="w-full h-full">
+            <path d="M9.993 12.922h4.153v1.89H5.72V-1.84h4.273v14.762z" fill="#000"></path>
+            <path d="M21.19 13.06c2.618 0 4.23-1.428 4.23-3.692 0-2.22-1.57-3.623-4.13-3.623h-2.58v7.315h2.48zm-2.48-8.834h2.41c1.55 0 2.617.773 2.617 2.11 0 1.355-1.023 2.132-2.595 2.132h-2.432v-4.242z" fill="#000"></path>
+            <path d="M43.08-1.84V14.89h-3.958L34.33.475l.182 14.415h-4.04V-1.84h3.957l4.774 14.38.18-14.38h3.655v.025z" fill="#000"></path>
+        </svg>
+    </div>
 )
 
 const UpiIcon = () => (
@@ -51,126 +54,158 @@ const PaytmIcon = () => (
     </svg>
 )
 
-export default function PaymentsPage({ navigateTo }: PaymentsPageProps) {
-  const [selectedPayment, setSelectedPayment] = useState('rapido-wallet');
+export default function PaymentsPage({ navigateTo, onBack }: PaymentsPageProps) {
+    const [selectedPayment, setSelectedPayment] = useState('rapido-wallet');
+    const { firestore, user } = useFirebase();
 
-  return (
-    <Layout title="Payments" navigateTo={navigateTo}>
-      <div className="p-4 space-y-4 bg-secondary/30 flex-1">
-        <div className="flex justify-between items-center mb-4 px-2">
-            <h2 className="text-lg font-semibold">Total Fare</h2>
-            <p className="text-lg font-bold">₹125</p>
-        </div>
-        <div className="w-full border-t border-dashed border-muted-foreground/50 mb-6"></div>
-        
-        <RadioGroup value={selectedPayment} onValueChange={setSelectedPayment}>
-            <h3 className="font-semibold text-muted-foreground px-2 mb-2">Wallets</h3>
-            <Card>
-                <CardContent className="p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Wallet className="h-6 w-6 text-primary" />
-                            <div>
-                                <p className="font-semibold">RIDER APP Wallet</p>
-                                <p className="text-sm text-destructive">Low Balance: ₹0.0</p>
-                            </div>
-                        </div>
-                        <RadioGroupItem value="rapido-wallet" id="rapido-wallet" />
-                    </div>
-                     <Button variant="outline" className="w-fit" onClick={() => navigateTo('wallet')}>+ Add Money</Button>
-                </CardContent>
-            </Card>
+    const userDocRef = useMemo(() =>
+        firestore && user ? doc(firestore, 'userProfiles', user.uid) : null,
+        [firestore, user]);
 
-             <Card>
-                <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <AmazonPayIcon />
-                        <p className="font-semibold">AmazonPay</p>
-                    </div>
-                    <Button variant="link" className="text-primary p-0 h-auto">LINK</Button>
-                </CardContent>
-                 <div className="border-t p-3 bg-secondary/50">
-                    <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                        <Ticket className="h-4 w-4 mt-0.5 flex-shrink-0 text-green-600" />
-                        <p>Cashback behind scratch card upto rs.25, assured rs.5 | min order value of rs.39 | once per month</p>
+    const { data: userProfile } = useDoc(userDocRef);
+    const walletBalance = userProfile?.walletBalance || 0;
+
+    // Fetch recent rides
+    const transactionsQuery = useMemo(() => {
+        if (!firestore || !user) return null;
+        return query(
+            collection(firestore, 'rides'),
+            where('userId', '==', user.uid),
+            where('status', 'in', ['PAID', 'ENDED']),
+            orderBy('createdAt', 'desc'),
+            limit(5)
+        );
+    }, [firestore, user]);
+
+    const { data: recentTransactions } = useCollection(transactionsQuery);
+
+    return (
+        <Layout title="Payments" navigateTo={navigateTo} onBack={onBack}>
+            <div className="bg-slate-50 min-h-screen pb-20">
+                {/* Wallet Balance Card */}
+                <div className="bg-white p-6 shadow-sm mb-2">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">TOTAL BALANCE</p>
+                    <div className="flex justify-between items-center">
+                        <h1 className="text-4xl font-bold">₹{walletBalance.toFixed(2)}</h1>
+                        <Button
+                            className="rounded-full px-6 bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg shadow-green-200"
+                            onClick={() => navigateTo('wallet')}
+                        >
+                            <Plus className="h-4 w-4 mr-1" /> ADD MONEY
+                        </Button>
                     </div>
                 </div>
-            </Card>
 
-            <h3 className="font-semibold text-muted-foreground px-2 mb-2 mt-6">
-                <div className="flex items-center gap-2">
-                    <UpiIcon />
-                    <span>Pay by any UPI app</span>
-                </div>
-            </h3>
+                <div className="p-4 space-y-6">
+                    {/* Payment Methods */}
+                    <div>
+                        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">Payment Methods</h3>
+                        <div className="bg-white rounded-xl shadow-sm overflow-hidden divide-y">
 
-             <Card>
-                <CardContent className="p-0">
-                    <div className="p-4">
-                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <PaytmIcon />
+                            {/* RIDER APP Wallet */}
+                            <div className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedPayment('rapido-wallet')}>
+                                <div className="flex items-center gap-4">
+                                    <div className="h-10 w-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                                        <Wallet className="h-5 w-5 text-yellow-700" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-base">RIDER APP Wallet</p>
+                                        <p className="text-sm text-green-600 font-medium">Link & Pay</p>
+                                    </div>
+                                </div>
+                                <div className="h-5 w-5 rounded-full border-2 border-slate-300 flex items-center justify-center">
+                                    {selectedPayment === 'rapido-wallet' && <div className="h-3 w-3 bg-primary rounded-full" />}
+                                </div>
                             </div>
-                            <RadioGroupItem value="paytm" id="paytm" />
+
+                            {/* UPI */}
+                            <div className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedPayment('upi')}>
+                                <div className="flex items-center gap-4">
+                                    <div className="h-10 w-10 bg-blue-50 rounded-full flex items-center justify-center">
+                                        <Landmark className="h-5 w-5 text-blue-600" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-base">UPI</p>
+                                        <p className="text-xs text-muted-foreground">Google Pay, PhonePe, Paytm</p>
+                                    </div>
+                                </div>
+                                <Button variant="ghost" size="sm" className="text-primary font-bold">LINK</Button>
+                            </div>
+
+                            {/* Cash */}
+                            <div className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedPayment('cash')}>
+                                <div className="flex items-center gap-4">
+                                    <div className="h-10 w-10 bg-green-50 rounded-full flex items-center justify-center">
+                                        <Banknote className="h-5 w-5 text-green-600" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-base">Cash</p>
+                                        <p className="text-xs text-muted-foreground">Pay at the end of the trip</p>
+                                    </div>
+                                </div>
+                                <div className="h-5 w-5 rounded-full border-2 border-slate-300 flex items-center justify-center">
+                                    {selectedPayment === 'cash' && <div className="h-3 w-3 bg-primary rounded-full" />}
+                                </div>
+                            </div>
                         </div>
                     </div>
-                     <div className="border-t p-3 bg-secondary/50">
-                        <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                            <Ticket className="h-4 w-4 mt-0.5 flex-shrink-0 text-green-600" />
-                            <p>Upto ₹200 Cashback | Min. Txn ₹49 | + 1% Gold Coins | 1-31 Dec'25 | Not valid for users transacting via Paytm in the past 60 days.</p>
+
+                    {/* Pay Later / Offers Highlight */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <Card className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white border-0 shadow-lg">
+                            <CardContent className="p-4 relative overflow-hidden">
+                                <div className="absolute right-0 top-0 p-3 opacity-20">
+                                    <CreditCard className="h-16 w-16" />
+                                </div>
+                                <p className="text-xs font-medium opacity-80 mb-1">RIDER APP</p>
+                                <h3 className="text-lg font-bold mb-4">Pay Later</h3>
+                                <Button size="sm" variant="secondary" className="w-full text-indigo-700 font-bold h-8">Activate Now</Button>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-gradient-to-br from-orange-400 to-red-500 text-white border-0 shadow-lg">
+                            <CardContent className="p-4 relative overflow-hidden">
+                                <div className="absolute right-0 top-0 p-3 opacity-20">
+                                    <Tag className="h-16 w-16" />
+                                </div>
+                                <p className="text-xs font-medium opacity-80 mb-1">OFFERS</p>
+                                <h3 className="text-lg font-bold mb-4">View All</h3>
+                                <Button size="sm" variant="secondary" className="w-full text-orange-700 font-bold h-8" onClick={() => navigateTo('offers')}>Check Offers</Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Recent Transactions */}
+                    <div>
+                        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 px-1">Recent Transactions</h3>
+                        <div className="space-y-3">
+                            {recentTransactions && recentTransactions.length > 0 ? (
+                                recentTransactions.map((tx: any) => (
+                                    <div key={tx.id} className="bg-white p-4 rounded-xl shadow-sm flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-10 w-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                                                <div className="text-xs font-bold text-slate-600">
+                                                    {tx.createdAt?.toDate ? tx.createdAt.toDate().getDate() : 'DD'}
+                                                    <br />
+                                                    {tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleString('default', { month: 'short' }).toUpperCase() : 'MM'}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-sm">Ride Completed</p>
+                                                <p className="text-xs text-muted-foreground">{tx.dropLocation || 'Destination'}</p>
+                                            </div>
+                                        </div>
+                                        <span className="font-bold text-base text-slate-800">₹{Math.round(tx.estimatedFare || tx.fare || 0)}</span>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center py-8 bg-white rounded-xl border-dashed border-2 border-slate-200">
+                                    <p className="text-muted-foreground text-sm">No recent transactions</p>
+                                </div>
+                            )}
                         </div>
                     </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                 <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                             <Image src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Google_Pay_Logo.svg/100px-Google_Pay_Logo.svg.png" width={40} height={20} alt="GPay" />
-                            <p className="font-semibold">GPay</p>
-                        </div>
-                        <RadioGroupItem value="gpay" id="gpay" />
-                    </div>
-                 </CardContent>
-            </Card>
-             <Card>
-                 <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Image src="https://upload.wikimedia.org/wikipedia/commons/7/71/PhonePe_Logo.svg" width={100} height={20} alt="PhonePe" className="w-20"/>
-                        </div>
-                        <RadioGroupItem value="phonepe" id="phonepe" />
-                    </div>
-                 </CardContent>
-            </Card>
-             <Card>
-                 <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Landmark className="h-6 w-6 text-primary"/>
-                            <p className="font-semibold">Pay by any UPI app</p>
-                        </div>
-                        <Button variant="link" className="text-primary">CHOOSE</Button>
-                    </div>
-                 </CardContent>
-            </Card>
-
-
-            <h3 className="font-semibold text-muted-foreground px-2 mb-2 mt-6">Pay Later</h3>
-            <Card>
-                <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Tag className="h-6 w-6 text-primary" />
-                        <p className="font-semibold">Cash</p>
-                    </div>
-                    <RadioGroupItem value="cash" id="cash" />
-                </CardContent>
-            </Card>
-
-        </RadioGroup>
-
-      </div>
-    </Layout>
-  );
+                </div>
+            </div>
+        </Layout>
+    );
 }

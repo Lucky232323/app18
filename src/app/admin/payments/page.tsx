@@ -156,64 +156,74 @@ export default function AdminPaymentsPage({ user, onLogout, navigateTo, currentS
 
     // CSV Header
     const headers = ["Ride ID", "Rider Name", "Captain Name", "Amount", "Payment Method", "Status", "Date"];
-    const rows = filteredTransactions.map(r => [
-      r.id,
-      r.riderName || "N/A",
-      r.captainName || "N/A",
-      r.estimatedFare || 0,
-      r.paymentMethod || "Cash",
-      r.status,
-      r.createdAt?.toDate ? format(r.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : "N/A"
-    ]);
+    const rows = filteredTransactions.map(r => {
+      // Handle potential commas in data to prevent CSV breakage
+      const clean = (str: any) => `"${String(str || '').replace(/"/g, '""')}"`;
 
-    const csvContent = "data:text/csv;charset=utf-8,"
-      + headers.join(",") + "\n"
-      + rows.map(e => e.join(",")).join("\n");
+      return [
+        clean(r.id),
+        clean(r.riderName || "N/A"),
+        clean(r.captainName || "N/A"),
+        r.estimatedFare || 0,
+        clean(r.paymentMethod || "Cash"),
+        clean(r.status),
+        clean(r.createdAt?.toDate ? format(r.createdAt.toDate(), 'yyyy-MM-dd HH:mm:ss') : "N/A")
+      ].join(",");
+    });
 
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `payments_report_${format(new Date(), 'yyyy-MM-dd')}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `payments_report_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
   };
 
   return (
     <AdminLayout user={user} onLogout={onLogout} navigateTo={navigateTo} currentScreen={currentScreen}>
       <div className="p-4 md:p-8 space-y-8 max-w-[1600px] mx-auto">
 
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-gray-900 p-6 rounded-xl border shadow-sm">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Financial Overview</h1>
             <p className="text-muted-foreground mt-1">Track revenue, transactions, and payment methods.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
             <Popover>
               <PopoverTrigger asChild>
                 <Button
+                  id="date"
                   variant={"outline"}
                   className={cn(
-                    "justify-start text-left font-normal w-[240px]",
+                    "w-full sm:w-[260px] justify-start text-left font-normal bg-white dark:bg-gray-950 border-input shadow-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 transition-all",
                     !date && "text-muted-foreground"
                   )}
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  <CalendarIcon className="mr-2 h-4 w-4 text-blue-600" />
                   {date?.from ? (
                     date.to ? (
-                      <>
-                        {format(date.from, "LLL dd, y")} -{" "}
-                        {format(date.to, "LLL dd, y")}
-                      </>
+                      <span className="font-medium">
+                        {format(date.from, "MMM dd, yyyy")} - {format(date.to, "MMM dd, yyyy")}
+                      </span>
                     ) : (
-                      format(date.from, "LLL dd, y")
+                      format(date.from, "MMM dd, yyyy")
                     )
                   ) : (
-                    <span>Pick a date</span>
+                    <span>Pick a date range</span>
                   )}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">
+                <div className="p-3 border-b bg-gray-50/50">
+                  <p className="text-sm font-medium text-gray-500">Select Range</p>
+                </div>
                 <Calendar
                   initialFocus
                   mode="range"
@@ -221,12 +231,14 @@ export default function AdminPaymentsPage({ user, onLogout, navigateTo, currentS
                   selected={date}
                   onSelect={setDate}
                   numberOfMonths={2}
+                  className="p-3 pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
 
-            <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleExport}>
-              <ArrowDownRight className="h-4 w-4" /> Export Report
+            <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md active:scale-95 transition-all" onClick={handleExport}>
+              <ArrowDownRight className="h-4 w-4" />
+              <span>Export CSV</span>
             </Button>
           </div>
         </div>

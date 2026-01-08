@@ -39,13 +39,15 @@ export type Screen =
   | 'admin-ratings'
   | 'admin-notifications'
   | 'admin-settings'
-  | 'chat';
+  | 'chat'
+  | 'offers';
 
 export type User = {
   phone: string;
   name: string;
   email: string;
   gender?: 'male' | 'female' | 'other';
+  role?: 'rider' | 'captain' | 'admin';
 };
 
 export type UserProfile = {
@@ -115,4 +117,16 @@ export type Service = {
   eta: number;
   fare: number;
   image?: string;
+};
+
+export type Promotion = {
+  id: string;
+  code: string;
+  discountType: 'percentage' | 'flat';
+  value: number;
+  description: string;
+  validUntil: any;
+  targetAudience: 'ALL' | 'RIDERS' | 'CAPTAINS';
+  minFare?: number;
+  maxDiscount?: number;
 };

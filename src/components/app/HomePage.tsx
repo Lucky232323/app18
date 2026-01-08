@@ -9,7 +9,7 @@ import RideStatusSheet from './RideStatusSheet';
 import TripSummarySheet from './TripSummarySheet';
 import SideMenu from './SideMenu';
 import { Button } from '@/components/ui/button';
-import { Menu, User, Crosshair, ShieldAlert } from 'lucide-react';
+import { Menu, User, Crosshair, ShieldAlert, Bell, Bike, Car, Package } from 'lucide-react';
 import type { Ride, Screen, Service, User as UserType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useDoc } from '@/firebase';
@@ -25,10 +25,12 @@ type HomePageProps = {
   openChat: (rideId: string) => void;
   activeRideId: string | null;
   onActiveRideIdChange: (rideId: string | null) => void;
+  initialSideMenuOpen?: boolean;
 };
 
-export default function HomePage({ user, onRideComplete, navigateTo, handleLogout, openChat, activeRideId, onActiveRideIdChange: setActiveRideId }: HomePageProps) {
+export default function HomePage({ user, onRideComplete, navigateTo, handleLogout, openChat, activeRideId, onActiveRideIdChange: setActiveRideId, initialSideMenuOpen = false }: HomePageProps) {
   const [stage, setStage] = useState<Stage>('idle');
+  const [sideMenuOpen, setSideMenuOpen] = useState(initialSideMenuOpen);
   const [pickup, setPickup] = useState('Your Current Location');
   const [destination, setDestination] = useState('');
   const [selectedService, setSelectedService] = useState<Service['id']>('Bike');
@@ -99,12 +101,28 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
           break;
       }
     }
-  }, [rideData, isRideLoading]);
+  }, [rideData, isRideLoading, activeRideId]);
+
+  // --- 4. OFFERS: Fetch Active Promotions ---
+  const [promotions, setPromotions] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchPromos = async () => {
+      if (!firestore) return;
+      try {
+        const q = collection(firestore, 'promotions'); // Simplified query for demo to ensure data shows
+        const snap = await import('firebase/firestore').then(mod => mod.getDocs(q));
+        const promos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setPromotions(promos);
+      } catch (e) { console.error("Error fetching promos", e); }
+    };
+    fetchPromos();
+  }, [firestore]);
 
 
-  const handleDestinationSelect = (pickup: string, destination: string) => {
-    setPickup(pickup);
-    setDestination(destination);
+  const handleDestinationSelect = (p: string, d: string, coords?: { lat: number, lng: number }) => {
+    setPickup(p);
+    setDestination(d);
+    if (coords) setMapCenter(coords);
     setStage('selecting_service');
   };
 
@@ -131,7 +149,8 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
 
     try {
       const ridePayload = {
-        riderId: firebaseUser.uid,
+        userId: firebaseUser.uid, // Standardized field for queries
+        riderId: firebaseUser.uid, // Keep for backward compatibility if needed
         riderName: user.name,
         riderPhone: user.phone,
         pickupLocation: pickup,
@@ -269,6 +288,9 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
                 <ShieldAlert className="h-6 w-6" />
               </Button>
             )}
+            <Button variant="ghost" size="icon" className="h-12 w-12 bg-card rounded-full shadow-lg" onClick={() => navigateTo('notifications')}>
+              <Bell />
+            </Button>
             <Button variant="ghost" size="icon" className="h-12 w-12 bg-card rounded-full shadow-lg" onClick={() => navigateTo('profile')}>
               <User />
             </Button>
@@ -281,13 +303,17 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
           <div className="absolute top-20 left-0 right-0 p-4 space-y-4">
             {/* Services Grid */}
             <div className="grid grid-cols-4 gap-2">
-              {['Bike', 'Auto', 'Cab', 'Parcel'].map((item) => (
-                <div key={item} className="flex flex-col items-center bg-card p-3 rounded-xl shadow-sm border border-border/50 transition-all hover:scale-105 active:scale-95 cursor-pointer" onClick={() => setStage('searching')}>
-                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-1">
-                    {/* Icons can be dynamic based on item, keeping simple for now */}
-                    <div className="w-8 h-8 rounded-full bg-primary/20" />
+              {[
+                { name: 'Bike', icon: Bike },
+                { name: 'Auto', icon: Car },
+                { name: 'Cab', icon: Car },
+                { name: 'Parcel', icon: Package }
+              ].map((item, index) => (
+                <div key={item.name + index} className="flex flex-col items-center bg-card p-3 rounded-xl shadow-sm border border-border/50 transition-all hover:scale-105 active:scale-95 cursor-pointer" onClick={() => setStage('searching')}>
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-1 text-primary">
+                    <item.icon className="h-6 w-6" />
                   </div>
-                  <span className="text-xs font-semibold">{item}</span>
+                  <span className="text-xs font-semibold">{item.name}</span>
                 </div>
               ))}
             </div>
@@ -332,6 +358,7 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
           onBack={() => setStage('searching')}
           onBook={handleBook}
           navigateTo={navigateTo}
+          availableOffers={promotions}
         />
       )}
 

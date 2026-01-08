@@ -8,18 +8,12 @@ import {
 import { Button } from '@/components/ui/button';
 import {
   History,
-  Wallet,
-  Settings,
-  HelpCircle,
-  Shield,
-  Gift,
-  Award,
-  Power,
-  Coins,
-  Bell,
   CreditCard,
-  MessageSquareQuote,
-  Star as StarIcon,
+  Tag,
+  Bell,
+  Settings,
+  Shield,
+  HelpCircle,
   LogOut,
 } from 'lucide-react';
 import type { Screen, User as UserType } from '@/lib/types';
@@ -32,33 +26,26 @@ type SideMenuProps = {
   navigateTo: (screen: Screen) => void;
   onLogout: () => void;
   children: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 const mainMenuItems = [
   { screen: 'ride-history' as Screen, label: 'My Rides', icon: History },
-  { screen: 'my-rating' as Screen, label: 'My Rating', icon: StarIcon },
   { screen: 'payments' as Screen, label: 'Payments', icon: CreditCard },
-  { screen: 'wallet' as Screen, label: 'Wallet', icon: Wallet },
-];
-
-const offersMenuItems = [
-  { screen: 'rewards' as Screen, label: 'My Rewards', icon: Award },
-  { screen: 'coins' as Screen, label: 'RIDER APP Coins', icon: Coins },
-  { screen: 'power-pass' as Screen, label: 'Power Pass', icon: Power },
-  { screen: 'refer' as Screen, label: 'Refer and Earn', icon: Gift },
+  { screen: 'offers' as Screen, label: 'Offers & Promos', icon: Tag },
 ];
 
 const supportMenuItems = [
   { screen: 'notifications' as Screen, label: 'Notifications', icon: Bell },
+  { screen: 'settings' as Screen, label: 'Settings', icon: Settings },
   { screen: 'safety' as Screen, label: 'Safety', icon: Shield },
   { screen: 'help' as Screen, label: 'Help', icon: HelpCircle },
-  { screen: 'claims' as Screen, label: 'Claims', icon: MessageSquareQuote },
-  { screen: 'settings' as Screen, label: 'Settings', icon: Settings },
 ];
 
-export default function SideMenu({ user, navigateTo, onLogout, children }: SideMenuProps) {
+export default function SideMenu({ user, navigateTo, onLogout, children, open, onOpenChange }: SideMenuProps) {
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
         {children}
       </SheetTrigger>
@@ -69,10 +56,10 @@ export default function SideMenu({ user, navigateTo, onLogout, children }: SideM
             onClick={() => navigateTo('profile')}
           >
             <Avatar className="h-16 w-16">
-              <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
+              <AvatarFallback>{user?.name ? user.name.charAt(0).toUpperCase() : 'U'}</AvatarFallback>
             </Avatar>
             <div>
-              <p className="text-xl font-bold">{user?.name}</p>
+              <p className="text-xl font-bold">{user?.name || 'Guest User'}</p>
               <p className="text-sm text-muted-foreground">View Profile</p>
             </div>
           </div>
@@ -81,12 +68,6 @@ export default function SideMenu({ user, navigateTo, onLogout, children }: SideM
         <ScrollArea className="flex-1">
           <div className="py-2 px-2 space-y-1">
             {mainMenuItems.map((item) => (
-              <MenuItem key={item.screen} item={item} navigateTo={navigateTo} />
-            ))}
-          </div>
-          <Separator />
-          <div className="py-2 px-2 space-y-1">
-            {offersMenuItems.map((item) => (
               <MenuItem key={item.screen} item={item} navigateTo={navigateTo} />
             ))}
           </div>

@@ -21,7 +21,7 @@ export default function PermissionsPage({ onPermissionsGranted }: PermissionsPag
         () => {
           setLocationEnabled(true);
           toast({ title: "Location access granted", description: "You can now book rides." });
-          if(notificationsEnabled) setRewardVisible(true);
+          if (notificationsEnabled) setRewardVisible(true);
         },
         () => {
           toast({ variant: 'destructive', title: "Location access denied", description: "Please enable location in your browser settings to use this app." });
@@ -38,7 +38,7 @@ export default function PermissionsPage({ onPermissionsGranted }: PermissionsPag
       if (permission === 'granted') {
         setNotificationsEnabled(true);
         toast({ title: "Notifications enabled", description: "You'll receive updates about your rides." });
-        if(locationEnabled) setRewardVisible(true);
+        if (locationEnabled) setRewardVisible(true);
       } else {
         toast({ variant: 'destructive', title: "Notification access denied", description: "You can enable notifications later in your browser settings." });
       }
@@ -58,7 +58,7 @@ export default function PermissionsPage({ onPermissionsGranted }: PermissionsPag
         <CardContent className="space-y-6">
           <div className="flex items-start space-x-4">
             <div className="p-3 bg-primary/10 rounded-full">
-                <MapPin className="h-6 w-6 text-primary" />
+              <MapPin className="h-6 w-6 text-primary" />
             </div>
             <div>
               <h3 className="font-semibold">Location Access</h3>
@@ -74,8 +74,8 @@ export default function PermissionsPage({ onPermissionsGranted }: PermissionsPag
             </div>
           </div>
           <div className="flex items-start space-x-4">
-             <div className="p-3 bg-primary/10 rounded-full">
-                <Bell className="h-6 w-6 text-primary" />
+            <div className="p-3 bg-primary/10 rounded-full">
+              <Bell className="h-6 w-6 text-primary" />
             </div>
             <div>
               <h3 className="font-semibold">Notifications</h3>

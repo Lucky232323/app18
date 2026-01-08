@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Tag, Trash2, Calendar } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Tag, Trash2, Calendar, Users } from 'lucide-react';
 import { useFirebase, useMemoFirebase } from '@/firebase';
 import { collection, addDoc, deleteDoc, doc, Timestamp, query, orderBy } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -32,13 +33,14 @@ type Promotion = {
   validUntil: any;
   usageCount: number;
   status: 'active' | 'expired';
+  targetAudience: 'ALL' | 'RIDERS' | 'CAPTAINS';
 };
 
 export default function AdminOffersPage({ user, onLogout, navigateTo, currentScreen }: AdminOffersPageProps) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newPromo, setNewPromo] = useState({ code: '', discountType: 'percentage', value: '', description: '', validUntil: '' });
+  const [newPromo, setNewPromo] = useState({ code: '', discountType: 'percentage', value: '', description: '', validUntil: '', targetAudience: 'ALL' });
 
   const promosQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -50,19 +52,32 @@ export default function AdminOffersPage({ user, onLogout, navigateTo, currentScr
   const handleCreate = async () => {
     if (!firestore) return;
     try {
+      // 1. Create Promotion
       await addDoc(collection(firestore, 'promotions'), {
         code: newPromo.code.toUpperCase(),
         discountType: newPromo.discountType,
         value: Number(newPromo.value),
         description: newPromo.description,
         validUntil: Timestamp.fromDate(new Date(newPromo.validUntil)),
+        targetAudience: newPromo.targetAudience,
         usageCount: 0,
         status: 'active',
         createdAt: Timestamp.now()
       });
-      toast({ title: "Success", description: "Promotion created successfully" });
+
+      // 2. Auto-send Notification
+      await addDoc(collection(firestore, 'notifications'), {
+        title: `New Offer: ${newPromo.code.toUpperCase()}`,
+        body: `${newPromo.description}. Use code ${newPromo.code.toUpperCase()}!`,
+        targetAudience: newPromo.targetAudience,
+        createdAt: Timestamp.now(),
+        status: 'sent',
+        sentBy: 'System (Auto-Offer)'
+      });
+
+      toast({ title: "Success", description: "Promotion created & notification sent!" });
       setIsDialogOpen(false);
-      setNewPromo({ code: '', discountType: 'percentage', value: '', description: '', validUntil: '' });
+      setNewPromo({ code: '', discountType: 'percentage', value: '', description: '', validUntil: '', targetAudience: 'ALL' });
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to create promotion" });
       console.error(error);
@@ -95,6 +110,21 @@ export default function AdminOffersPage({ user, onLogout, navigateTo, currentScr
                 <DialogDescription>Add a new discount code for users.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Audience</Label>
+                  <div className="col-span-3">
+                    <Select value={newPromo.targetAudience} onValueChange={(v) => setNewPromo({ ...newPromo, targetAudience: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Target" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">All Users</SelectItem>
+                        <SelectItem value="RIDERS">Riders Only</SelectItem>
+                        <SelectItem value="CAPTAINS">Captains Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label className="text-right">Code</Label>
                   <Input value={newPromo.code} onChange={e => setNewPromo({ ...newPromo, code: e.target.value })} placeholder="SUMMER50" className="col-span-3 uppercase" />
@@ -136,9 +166,9 @@ export default function AdminOffersPage({ user, onLogout, navigateTo, currentScr
                 <TableHeader>
                   <TableRow>
                     <TableHead>Code</TableHead>
+                    <TableHead>Target</TableHead>
                     <TableHead>Discount</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead>Usage</TableHead>
                     <TableHead>Valid Until</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -153,9 +183,14 @@ export default function AdminOffersPage({ user, onLogout, navigateTo, currentScr
                         <Tag className="h-4 w-4" />
                         {promo.code}
                       </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="flex w-fit items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {promo.targetAudience || 'ALL'}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{promo.discountType === 'percentage' ? `${promo.value}%` : `₹${promo.value}`}</TableCell>
                       <TableCell>{promo.description}</TableCell>
-                      <TableCell>{promo.usageCount} times</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Calendar className="h-3 w-3" />

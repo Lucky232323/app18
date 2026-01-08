@@ -32,6 +32,12 @@ function Calendar({
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse space-y-1",
+        head_row: "flex", // Keep flex for head row if it works, or remove? styling for v9 usually keeps standard table.
+        // Let's TRY standard table layout for robustness as 'flex' on 'tr' is often the culprit in v9
+        // Actually, let's stick to the official shadcn v9 update recommendation if I knew it.
+        // Instead, I'll go with a safe "grid-like" layout or standard table.
+        // Removing 'flex' from rows is the safest bet for alignment.
+
         head_row: "flex",
         head_cell:
           "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",

@@ -10,9 +10,10 @@ import { Wallet as WalletIcon } from 'lucide-react';
 
 type WalletPageProps = {
   navigateTo: (screen: Screen) => void;
+  onBack?: () => void;
 };
 
-export default function WalletPage({ navigateTo }: WalletPageProps) {
+export default function WalletPage({ navigateTo, onBack }: WalletPageProps) {
   const [balance, setBalance] = useState(150.00);
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -32,16 +33,16 @@ export default function WalletPage({ navigateTo }: WalletPageProps) {
         });
       }, 1000);
     } else {
-        toast({
-            variant: "destructive",
-            title: "Invalid Amount",
-            description: "Please enter a valid amount to add.",
-        });
+      toast({
+        variant: "destructive",
+        title: "Invalid Amount",
+        description: "Please enter a valid amount to add.",
+      });
     }
   };
 
   return (
-    <Layout title="Wallet" navigateTo={navigateTo}>
+    <Layout title="Wallet" navigateTo={navigateTo} onBack={onBack}>
       <div className="p-4 space-y-6">
         <Card className="bg-primary text-primary-foreground">
           <CardHeader>
@@ -78,14 +79,14 @@ export default function WalletPage({ navigateTo }: WalletPageProps) {
         </Card>
 
         <Card>
-            <CardHeader>
-                <CardTitle>Recent Transactions</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="text-center text-muted-foreground py-8">
-                    <p>No recent transactions</p>
-                </div>
-            </CardContent>
+          <CardHeader>
+            <CardTitle>Recent Transactions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center text-muted-foreground py-8">
+              <p>No recent transactions</p>
+            </div>
+          </CardContent>
         </Card>
       </div>
     </Layout>

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, Shield, Wallet, Bell, CheckCircle, PhoneCall, User as UserIcon, MessageCircle, AlertTriangle, Star, Clock, MapPin, ChevronRight, Share2, PhoneForwarded } from 'lucide-react';
+import { LogOut, Shield, Wallet, Bell, CheckCircle, PhoneCall, User as UserIcon, MessageCircle, AlertTriangle, Star, Clock, MapPin, ChevronRight, Share2, PhoneForwarded, Tag, Gift, Copy, Percent } from 'lucide-react';
 import type { User, Ride, CaptainProfile } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useCollection, useDoc } from '@/firebase';
@@ -21,7 +21,7 @@ import VehicleIcon from '@/components/app/VehicleIcon';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { startOfDay, endOfDay } from 'date-fns';
 
-type SheetContentType = 'earnings' | 'safety' | 'profile' | 'notifications' | null;
+type SheetContentType = 'earnings' | 'safety' | 'profile' | 'notifications' | 'offers' | null;
 
 type CaptainDashboardPageProps = {
     captain: User | null;
@@ -93,6 +93,17 @@ export default function CaptainDashboardPage({ captain, onLogout, openChat }: Ca
         return query(collection(firestore, 'notifications'), where('targetAudience', 'in', ['ALL', 'CAPTAINS']), limit(5));
     }, [firestore]);
     const { data: notifications } = useCollection(notificationsQuery);
+
+    // Offers Query
+    const offersQuery = useMemo(() => {
+        if (!firestore) return null;
+        return query(
+            collection(firestore, 'promotions'),
+            where('targetAudience', 'in', ['ALL', 'CAPTAINS']),
+            where('status', '==', 'active')
+        );
+    }, [firestore]);
+    const { data: offers } = useCollection(offersQuery);
 
     // --- Calculations ---
     useEffect(() => {
@@ -212,7 +223,7 @@ export default function CaptainDashboardPage({ captain, onLogout, openChat }: Ca
                 <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-20 pointer-events-none">
                     <Card className="flex items-center gap-3 p-2 bg-background/90 backdrop-blur shadow-sm pointer-events-auto rounded-full pr-6">
                         <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
-                            <AvatarImage src={captainProfile?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${captain?.name}`} />
+                            <AvatarImage src={(captainProfile as any)?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${captain?.name}`} />
                             <AvatarFallback>{captain?.name?.charAt(0) || 'C'}</AvatarFallback>
                         </Avatar>
                         <div>
@@ -224,6 +235,11 @@ export default function CaptainDashboardPage({ captain, onLogout, openChat }: Ca
                         </div>
                     </Card>
                     <div className="flex gap-2 pointer-events-auto">
+                        <div className="relative">
+                            <Button variant="secondary" size="icon" className="rounded-full shadow-md bg-white/90" onClick={() => setActiveSheet('offers')}>
+                                <Tag className="h-5 w-5 text-slate-700" />
+                            </Button>
+                        </div>
                         <div className="relative">
                             <Button variant="secondary" size="icon" className="rounded-full shadow-md bg-white/90" onClick={() => setActiveSheet('notifications')}>
                                 <Bell className="h-5 w-5 text-slate-700" />
@@ -475,6 +491,46 @@ export default function CaptainDashboardPage({ captain, onLogout, openChat }: Ca
                                 </CardContent>
                             </Card>
                         </div>
+                    </div>
+                )}
+
+                {activeSheet === 'offers' && (
+                    <div className="p-6 space-y-4">
+                        <SheetTitle className="flex items-center gap-2 mb-4"><Gift className="h-6 w-6 text-orange-600" /> Offers & Promos</SheetTitle>
+                        {offers?.map((offer: any) => (
+                            <Card key={offer.id} className="border-l-4 border-l-orange-500 shadow-sm relative overflow-hidden bg-white dark:bg-slate-900">
+                                <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
+                                    <Gift className="h-24 w-24 text-orange-500" />
+                                </div>
+                                <CardContent className="flex items-start gap-4 p-4 relative z-10">
+                                    <div className="h-12 w-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center flex-shrink-0 text-orange-600">
+                                        <Percent className="h-6 w-6" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="font-bold text-lg">{offer.code}</h3>
+                                                <p className="text-sm text-slate-600 dark:text-slate-300">{offer.description}</p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 flex items-center gap-2 text-xs font-medium text-orange-600 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded w-fit">
+                                            <Tag className="h-3 w-3" />
+                                            {offer.discountType === 'percentage' ? `Get ${offer.value}% OFF` : `Flat ₹${offer.value} OFF`}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-2">
+                                            Valid until: {offer.validUntil?.toDate ? new Date(offer.validUntil.toDate()).toLocaleDateString() : 'N/A'}
+                                        </p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                        {(!offers || offers.length === 0) && (
+                            <div className="text-center py-10 text-muted-foreground bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                                <Gift className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                                <h3 className="font-bold text-lg text-slate-700 dark:text-slate-300">No Active Offers</h3>
+                                <p className="text-muted-foreground">Check back later for exciting deals!</p>
+                            </div>
+                        )}
                     </div>
                 )}
 

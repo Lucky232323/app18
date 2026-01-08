@@ -14,6 +14,7 @@ import { useState } from 'react';
 
 type HelpPageProps = {
   navigateTo: (screen: Screen) => void;
+  onBack?: () => void;
 };
 
 const faqs = [
@@ -34,25 +35,25 @@ const faqs = [
   {
     category: 'Account',
     questions: [
-        { q: 'How to update my profile?', a: 'You can update your profile from the profile screen, accessible via the side menu.' },
-        { q: 'I forgot my password.', a: 'Our login is OTP-based, so you don\'t need a password. Just use your mobile number.' },
+      { q: 'How to update my profile?', a: 'You can update your profile from the profile screen, accessible via the side menu.' },
+      { q: 'I forgot my password.', a: 'Our login is OTP-based, so you don\'t need a password. Just use your mobile number.' },
     ],
   },
 ];
 
-export default function HelpPage({ navigateTo }: HelpPageProps) {
-    const [searchTerm, setSearchTerm] = useState('');
+export default function HelpPage({ navigateTo, onBack }: HelpPageProps) {
+  const [searchTerm, setSearchTerm] = useState('');
 
-    const filteredFaqs = faqs.map(cat => ({
-        ...cat,
-        questions: cat.questions.filter(
-            q => q.q.toLowerCase().includes(searchTerm.toLowerCase()) || q.a.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-    })).filter(cat => cat.questions.length > 0);
+  const filteredFaqs = faqs.map(cat => ({
+    ...cat,
+    questions: cat.questions.filter(
+      q => q.q.toLowerCase().includes(searchTerm.toLowerCase()) || q.a.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  })).filter(cat => cat.questions.length > 0);
 
 
   return (
-    <Layout title="Help" navigateTo={navigateTo}>
+    <Layout title="Help" navigateTo={navigateTo} onBack={onBack}>
       <div className="p-4 space-y-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -78,9 +79,9 @@ export default function HelpPage({ navigateTo }: HelpPageProps) {
           </div>
         ))}
         {filteredFaqs.length === 0 && (
-            <div className="text-center text-muted-foreground py-10">
-                <p>No results found for "{searchTerm}"</p>
-            </div>
+          <div className="text-center text-muted-foreground py-10">
+            <p>No results found for "{searchTerm}"</p>
+          </div>
         )}
       </div>
     </Layout>

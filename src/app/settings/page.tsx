@@ -20,29 +20,30 @@ import { useFirebase } from '@/firebase';
 type SettingsPageProps = {
   navigateTo: (screen: Screen) => void;
   onLogout: () => void;
+  onBack?: () => void;
 };
 
-export default function SettingsPage({ navigateTo, onLogout }: SettingsPageProps) {
-    const { toast } = useToast();
-    const { auth } = useFirebase();
+export default function SettingsPage({ navigateTo, onLogout, onBack }: SettingsPageProps) {
+  const { toast } = useToast();
+  const { auth } = useFirebase();
 
-    const handleDummyClick = () => {
-        toast({
-            title: "Coming Soon!",
-            description: "This feature is under development."
-        });
-    };
-    
-    const handleLogoutClick = () => {
-      if (auth) {
-        auth.signOut().then(() => {
-          onLogout();
-          toast({ title: "Logged out successfully" });
-        }).catch((error) => {
-          toast({ variant: 'destructive', title: "Logout failed", description: error.message });
-        });
-      }
+  const handleDummyClick = () => {
+    toast({
+      title: "Coming Soon!",
+      description: "This feature is under development."
+    });
+  };
+
+  const handleLogoutClick = () => {
+    if (auth) {
+      auth.signOut().then(() => {
+        onLogout();
+        toast({ title: "Logged out successfully" });
+      }).catch((error) => {
+        toast({ variant: 'destructive', title: "Logout failed", description: error.message });
+      });
     }
+  }
 
   const generalItems = [
     { label: 'Profile', icon: User, action: () => navigateTo('profile') },
@@ -57,7 +58,7 @@ export default function SettingsPage({ navigateTo, onLogout }: SettingsPageProps
   ];
 
   return (
-    <Layout title="Settings" navigateTo={navigateTo}>
+    <Layout title="Settings" navigateTo={navigateTo} onBack={onBack}>
       <div className="p-4 space-y-6">
         <div>
           <h3 className="text-sm font-semibold text-muted-foreground px-4 mb-2">GENERAL</h3>
@@ -86,7 +87,7 @@ export default function SettingsPage({ navigateTo, onLogout }: SettingsPageProps
                 <button
                   key={index}
                   className="flex items-center w-full p-3 text-left hover:bg-secondary rounded-md"
-                   onClick={item.action}
+                  onClick={item.action}
                 >
                   <item.icon className="h-6 w-6 mr-4 text-muted-foreground" />
                   <span className="flex-1 text-base font-medium">{item.label}</span>
@@ -98,22 +99,22 @@ export default function SettingsPage({ navigateTo, onLogout }: SettingsPageProps
         </div>
 
         <Card>
-            <CardContent className="p-2">
-                <button
-                    className="flex items-center w-full p-3 text-left hover:bg-secondary rounded-md text-destructive"
-                    onClick={handleLogoutClick}
-                >
-                    <LogOut className="h-6 w-6 mr-4" />
-                    <span className="flex-1 text-base font-medium">Logout</span>
-                </button>
-                <button
-                    className="flex items-center w-full p-3 text-left hover:bg-secondary rounded-md text-destructive"
-                    onClick={handleDummyClick}
-                >
-                    <Trash2 className="h-6 w-6 mr-4" />
-                    <span className="flex-1 text-base font-medium">Delete Account</span>
-                </button>
-            </CardContent>
+          <CardContent className="p-2">
+            <button
+              className="flex items-center w-full p-3 text-left hover:bg-secondary rounded-md text-destructive"
+              onClick={handleLogoutClick}
+            >
+              <LogOut className="h-6 w-6 mr-4" />
+              <span className="flex-1 text-base font-medium">Logout</span>
+            </button>
+            <button
+              className="flex items-center w-full p-3 text-left hover:bg-secondary rounded-md text-destructive"
+              onClick={handleDummyClick}
+            >
+              <Trash2 className="h-6 w-6 mr-4" />
+              <span className="flex-1 text-base font-medium">Delete Account</span>
+            </button>
+          </CardContent>
         </Card>
       </div>
     </Layout>
