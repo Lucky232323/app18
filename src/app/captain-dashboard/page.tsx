@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, Shield, Wallet, Bell, CheckCircle, PhoneCall, User as UserIcon, MessageCircle, AlertTriangle, Star, Clock, MapPin, ChevronRight, Share2, PhoneForwarded, Tag, Gift, Copy, Percent } from 'lucide-react';
+import { LogOut, Shield, Wallet, Bell, CheckCircle, PhoneCall, User as UserIcon, MessageCircle, AlertTriangle, Star, Clock, MapPin, ChevronRight, Share2, PhoneForwarded, Tag, Gift, Copy, Percent, Power } from 'lucide-react';
 import type { User, Ride, CaptainProfile } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase, useCollection, useDoc } from '@/firebase';
@@ -235,6 +235,11 @@ export default function CaptainDashboardPage({ captain, onLogout, openChat }: Ca
                         </div>
                     </Card>
                     <div className="flex gap-2 pointer-events-auto">
+                        {isOnline ? (
+                            <Button size="icon" className="rounded-full shadow-md bg-red-500 hover:bg-red-600 border-2 border-white text-white animate-in zoom-in" onClick={() => handleOnlineToggle(false)}>
+                                <Power className="h-5 w-5" />
+                            </Button>
+                        ) : null}
                         <div className="relative">
                             <Button variant="secondary" size="icon" className="rounded-full shadow-md bg-white/90" onClick={() => setActiveSheet('offers')}>
                                 <Tag className="h-5 w-5 text-slate-700" />

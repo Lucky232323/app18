@@ -7,7 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, Clock, CheckCircle2, Search, Filter, Octagon, MoreVertical, Eye, Share2, MapPin, Phone } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { AlertCircle, Clock, CheckCircle2, Search, Filter, Octagon, MoreVertical, Eye, Share2, MapPin, Phone, User as UserIcon } from 'lucide-react';
+
 import { useFirebase, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, where, updateDoc, doc, Timestamp, addDoc } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -45,12 +47,11 @@ type Incident = {
   createdAt: Timestamp;
   updatedAt?: Timestamp;
   priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-};
-
-export default function AdminSosAlertsPage({ user, onLogout, navigateTo, currentScreen }: AdminSosAlertsPageProps) {
+}; export default function AdminSosAlertsPage({ user, onLogout, navigateTo, currentScreen }: AdminSosAlertsPageProps) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('OPEN');
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
 
   // --- 1. Queries ---
   const incidentsQuery = useMemoFirebase(() => {
@@ -265,7 +266,7 @@ export default function AdminSosAlertsPage({ user, onLogout, navigateTo, current
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => { }} className="gap-2">
+                          <DropdownMenuItem onClick={() => setSelectedIncident(incident)} className="gap-2">
                             <Eye className="h-4 w-4" /> View Details
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleStatusChange(incident.id, 'INVESTIGATING')} className="gap-2" disabled={incident.status === 'INVESTIGATING' || incident.status === 'RESOLVED'}>
@@ -285,6 +286,99 @@ export default function AdminSosAlertsPage({ user, onLogout, navigateTo, current
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+
+
+      <Sheet open={!!selectedIncident} onOpenChange={(open) => !open && setSelectedIncident(null)}>
+        <SheetContent className="sm:max-w-md w-full overflow-y-auto">
+          <SheetHeader className="pb-4 border-b">
+            <SheetTitle className="flex items-center gap-2">
+              {selectedIncident?.type === 'SOS' && <Octagon className="h-5 w-5 text-red-500" />}
+              Incident Details
+            </SheetTitle>
+          </SheetHeader>
+
+          {selectedIncident && (
+            <div className="space-y-6 pt-6">
+              {/* Status Section */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Status</p>
+                  <div className="mt-1">{getStatusBadge(selectedIncident.status)}</div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground text-right">Priority</p>
+                  <div className="mt-1 flex justify-end">{getPriorityBadge(selectedIncident.priority)}</div>
+                </div>
+              </div>
+
+              {/* User Details */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Reported By</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center">
+                      <UserIcon className="h-5 w-5 text-slate-500" />
+                    </div>
+                    <div>
+                      <p className="font-bold">{selectedIncident.userName || 'Unknown User'}</p>
+                      <p className="text-sm text-muted-foreground">User</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <a href={`tel:${selectedIncident.userPhone}`} className="text-blue-600 hover:underline">{selectedIncident.userPhone || 'No phone'}</a>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Incident Details */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Description</p>
+                <div className="bg-slate-50 p-3 rounded-lg border text-sm">
+                  {selectedIncident.description || "No description provided."}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Time</p>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span>{selectedIncident.createdAt ? format(selectedIncident.createdAt.toDate(), "PPpp") : 'N/A'}</span>
+                </div>
+              </div>
+
+              {selectedIncident.location && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Location</p>
+                  <div className="flex items-center gap-2 text-sm bg-slate-50 p-2 rounded">
+                    <MapPin className="h-4 w-4 text-red-500" />
+                    <span>{selectedIncident.location.address || `${selectedIncident.location.lat.toFixed(4)}, ${selectedIncident.location.lng.toFixed(4)}`}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="pt-4 border-t flex flex-col gap-2">
+                <Button className="w-full" onClick={() => {
+                  handleStatusChange(selectedIncident.id, 'INVESTIGATING');
+                  setSelectedIncident(null);
+                }} disabled={selectedIncident.status !== 'OPEN'}>
+                  Start Investigation
+                </Button>
+                <Button variant="outline" className="w-full text-green-600 border-green-200 hover:bg-green-50" onClick={() => {
+                  handleStatusChange(selectedIncident.id, 'RESOLVED');
+                  setSelectedIncident(null);
+                }} disabled={selectedIncident.status === 'RESOLVED'}>
+                  Mark as Resolved
+                </Button>
+              </div>
+
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+    </AdminLayout >
   );
 }

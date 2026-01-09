@@ -24,8 +24,6 @@ export default function RideHistoryPage({ navigateTo, onBack }: RideHistoryPageP
     return query(
       collection(firestore, 'rides'),
       where('userId', '==', user.uid),
-      // Removed status filter to properly debug and show all user interactions
-      orderBy('createdAt', 'desc'),
       limit(20)
     );
   }, [firestore, user]);

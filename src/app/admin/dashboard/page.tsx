@@ -13,6 +13,9 @@ import { format } from 'date-fns';
 import Map from '@/components/app/Map';
 import type { Ride, UserProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import * as React from 'react';
 
 
 type AdminDashboardPageProps = {
@@ -64,22 +67,41 @@ export default function AdminDashboardPage({ user, onLogout, navigateTo, current
     [firestore]);
   const { data: allRides, isLoading: allRidesLoading } = useCollection<Ride>(ridesQuery);
 
-  // Calculate Real Revenue
+  const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
+    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    to: new Date(),
+  });
+
+  const handleApprove = async (captainId: string) => {
+    if (!firestore) return;
+    try {
+      await updateDoc(doc(firestore, 'captainProfiles', captainId), { status: 'approved' });
+    } catch (err) {
+      console.error("Failed to approve", err);
+    }
+  }
+
+  // Calculate Real Revenue based on Date Range
   const revenueStats = useMemoFirebase(() => {
-    if (!allRides) return { today: 0, total: 0 };
+    if (!allRides || !dateRange?.from) return { selectedPeriod: 0 };
 
-    const now = new Date();
-    const todayStr = now.toDateString();
+    let total = 0;
+    const from = dateRange.from;
+    const to = dateRange.to || dateRange.from; // Default to single day if no end date
 
-    let today = 0;
+    // Normalize 'to' date to end of day to include all rides on that day
+    const toEndOfDay = new Date(to);
+    toEndOfDay.setHours(23, 59, 59, 999);
+
+    const fromStartOfDay = new Date(from);
+    fromStartOfDay.setHours(0, 0, 0, 0);
 
     allRides.forEach(ride => {
       // Only count completed/paid rides
       if (ride.status === 'PAID' || ride.status === 'ENDED') {
         const amount = ride.estimatedFare || 0;
-
-        // Check if ride was today
         let rideDate: Date | null = null;
+
         if (ride.createdAt) {
           if (typeof ride.createdAt.toDate === 'function') {
             rideDate = ride.createdAt.toDate();
@@ -90,14 +112,14 @@ export default function AdminDashboardPage({ user, onLogout, navigateTo, current
           }
         }
 
-        if (rideDate && rideDate.toDateString() === todayStr) {
-          today += amount;
+        if (rideDate && rideDate >= fromStartOfDay && rideDate <= toEndOfDay) {
+          total += amount;
         }
       }
     });
 
-    return { today };
-  }, [allRides]);
+    return { selectedPeriod: total };
+  }, [allRides, dateRange]);
 
   const kpis = [
     {
@@ -125,28 +147,31 @@ export default function AdminDashboardPage({ user, onLogout, navigateTo, current
       trend: 'Currently live'
     },
     {
-      title: 'Today\'s Revenue',
-      value: allRidesLoading ? '...' : `₹${revenueStats?.today?.toLocaleString() ?? 0}`,
+      title: 'Total Revenue',
+      value: allRidesLoading ? '...' : `₹${revenueStats?.selectedPeriod?.toLocaleString() ?? 0}`,
       icon: DollarSign,
       color: 'text-purple-500',
       screen: 'admin-payments' as Screen,
-      trend: 'Earned today'
+      trend: dateRange?.from ? `${format(dateRange.from, 'MMM d')} - ${dateRange.to ? format(dateRange.to, 'MMM d') : format(dateRange.from, 'MMM d')}` : 'Selected Period'
     },
   ];
 
-  const handleApprove = async (captainId: string) => {
-    if (!firestore) return;
-    // In a real app, this would be a server action or cloud function
-    try {
-      await updateDoc(doc(firestore, 'captainProfiles', captainId), { status: 'approved' });
-    } catch (err) {
-      console.error("Failed to approve", err);
-    }
-  }
-
   return (
     <AdminLayout user={user} onLogout={onLogout} navigateTo={navigateTo} currentScreen={currentScreen}>
+
       <div className="p-4 md:p-8 space-y-8">
+
+        {/* Header with Date Range Picker */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Financial Overview</h2>
+            <p className="text-muted-foreground mt-1">Revenue, transactions, and payment methods.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {kpis.map((kpi) => (
             <Button

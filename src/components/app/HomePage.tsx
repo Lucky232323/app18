@@ -37,6 +37,7 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
   const [mapCenter, setMapCenter] = useState<{ lat: number, lng: number } | null>(null);
   const [platformConfig, setPlatformConfig] = useState<any>(null); // To store dynamic pricing
   const [rideData, setRideData] = useState<Ride | null>(null);
+  const [rideDistance, setRideDistance] = useState(0);
 
   const { toast } = useToast();
   const { firestore, user: firebaseUser } = useFirebase();
@@ -89,7 +90,8 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
         if (data.status === 'ACCEPTED' && stage === 'finding_captain') setStage('in_ride'); // Simplified flow
         if (data.status === 'ARRIVED') setStage('in_ride');
         if (data.status === 'STARTED') setStage('in_ride');
-        if (data.status === 'COMPLETED') setStage('payment');
+        if (data.status === 'ENDED') setStage('payment'); // Captain 'Ends' the ride
+        if (data.status === 'COMPLETED') setStage('payment'); // Fallback
 
         switch (data.status) {
           case 'PAID':
@@ -155,12 +157,10 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
     let baseFare = platformConfig?.baseFare || 40; // Default fallback
     let perKm = platformConfig?.perKmRate || 12;   // Default fallback
 
-    // Very basic distance simulation (random between 2km - 15km)
-    const simulatedDistance = Math.floor(Math.random() * 13) + 2;
-
-    let fare = baseFare + (simulatedDistance * perKm);
+    let fare = baseFare + (rideDistance * perKm);
 
     // Service Multipliers
+    if (service === 'Bike') fare *= 0.8;
     if (service === 'Auto') fare *= 1.2;
     if (service === 'Cab') fare *= 1.8;
 
@@ -168,8 +168,8 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
       const ridePayload = {
         userId: firebaseUser.uid, // Standardized field for queries
         riderId: firebaseUser.uid, // Keep for backward compatibility if needed
-        riderName: user.name,
-        riderPhone: user.phone,
+        riderName: user.name || "Rider",
+        riderPhone: user.phone || "Not Provided",
         pickupLocation: pickup,
         dropLocation: destination,
         status: 'SEARCHING',
@@ -389,7 +389,7 @@ export default function HomePage({ user, onRideComplete, navigateTo, handleLogou
         <RideStatusSheet ride={rideForSheet} onCancel={handleCancelSearch} openChat={openChat} />
       )}
 
-      {stage === 'trip_summary' && rideForSheet && (
+      {(stage === 'trip_summary' || stage === 'payment') && rideForSheet && (
         <TripSummarySheet ride={rideForSheet} onDone={handleRideCompletion} />
       )}
     </div>
